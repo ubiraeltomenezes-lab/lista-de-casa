@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista Inteligente Permanente</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --mercearia: #f59e0b;
+            --limpeza: #3b82f6;
+            --hortifruti: #10b981;
+            --dark: #1e293b;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 10px; display: flex; flex-direction: column; align-items: center; margin: 0; }
+        .container { background: white; width: 100%; max-width: 450px; padding: 20px; border-radius: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); box-sizing: border-box; }
+
+        /* Saldo */
+        .painel-saldo { background: #f8fafc; padding: 15px; border-radius: 20px; border: 2px solid #e2e8f0; margin-bottom: 15px; text-align: center; }
+        .input-limite { width: 100px; padding: 8px; border-radius: 10px; border: 1px solid var(--primary); text-align: center; font-weight: bold; font-size: 1rem; }
+        .saldo-texto { font-size: 0.9rem; margin-top: 8px; font-weight: bold; }
+        .saldo-positivo { color: var(--success); }
+        .saldo-negativo { color: var(--danger); }
+
+        /* Categorias */
+        .seletor-categorias { display: flex; gap: 5px; margin-bottom: 15px; }
+        .btn-cat { flex: 1; padding: 10px 5px; border: none; border-radius: 10px; color: white; font-weight: bold; font-size: 0.65rem; cursor: pointer; opacity: 0.4; }
+        .btn-cat.active { opacity: 1; transform: scale(1.05); box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
+        .bg-mercearia { background: var(--mercearia); }
+        .bg-limpeza { background: var(--limpeza); }
+        .bg-hortifruti { background: var(--hortifruti); }
+
+        .input-box { display: flex; gap: 8px; margin-bottom: 20px; }
+        .input-box input { flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; outline: none; }
+        .btn-add { background: var(--dark); color: white; border: none; padding: 0 20px; border-radius: 12px; cursor: pointer; font-weight: bold; }
+
+        /* Lista */
+        .grupo-categoria { margin-bottom: 15px; border-radius: 15px; overflow: hidden; border: 1px solid #e2e8f0; background: white; }
+        .titulo-grupo { padding: 8px 15px; color: white; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; }
+        .item-linha { display: flex; align-items: center; gap: 5px; padding: 10px; border-bottom: 1px solid #f1f5f9; }
+        .nome-prod { flex: 2; font-weight: 600; font-size: 0.85rem; color: #334155; }
+        .campo-qtd { width: 35px; padding: 5px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; }
+        .campo-preco { width: 65px; padding: 5px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: bold; color: var(--success); }
+
+        .total-card { background: var(--dark); color: white; padding: 15px; border-radius: 20px; text-align: center; margin-top: 10px; }
+        .total-card.estourou { background: var(--danger); animation: shake 0.5s; }
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-5px);} 75% {transform: translateX(5px);} }
+        .valor-total { font-size: 1.8rem; font-weight: 900; display: block; color: #4ade80; }
+
+        .btn-finalizar { width: 100%; margin-top: 10px; padding: 15px; background: var(--success); color: white; border: none; border-radius: 15px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+
+        /* Histórico */
+        .historico { margin-top: 30px; width: 100%; max-width: 450px; }
+        .item-hist { background: white; padding: 15px; border-radius: 15px; margin-bottom: 10px; border-left: 6px solid var(--dark); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .hist-detalhes { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 0.8rem; color: #475569; display: none; }
+        .btn-ver-itens { background: #f1f5f9; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; cursor: pointer; color: var(--primary); font-weight: bold; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="painel-saldo">
+        <label style="font-size: 0.7rem; color: #64748b; font-weight: bold;">LIMITE DE GASTO R$:</label><br>
+        <input type="number" id="limite-valor" class="input-limite" placeholder="0.00" oninput="salvarLimite()">
+        <div id="saldo-box" class="saldo-texto">Saldo: R$ 0,00</div>
+    </div>
+
+    <div class="seletor-categorias">
+        <button class="btn-cat bg-mercearia active" onclick="setCat('mercearia', this)">MERCEARIA</button>
+        <button class="btn-cat bg-limpeza" onclick="setCat('limpeza', this)">LIMPEZA</button>
+        <button class="btn-cat bg-hortifruti" onclick="setCat('hortifruti', this)">HORTIFRUTI</button>
+    </div>
+
+    <div class="input-box">
+        <input type="text" id="nome-item" placeholder="Nome do item...">
+        <button class="btn-add" onclick="adicionar()">+</button>
+    </div>
+
+    <div id="lista-organizada"></div>
+
+    <div class="total-card" id="card-total">
+        <small>TOTAL COMPRA</small>
+        <span class="valor-total" id="total-geral">R$ 0,00</span>
+    </div>
+
+    <button class="btn-finalizar" onclick="finalizar()">✅ FECHAR SEMANA E SALVAR</button>
+</div>
+
+<div id="historico" class="historico"></div>
+
+<script>
+    let categoriaAtual = 'mercearia';
+    let produtos = JSON.parse(localStorage.getItem('lista_v10')) || [];
+    let historico = JSON.parse(localStorage.getItem('hist_v10')) || [];
+    let limite = localStorage.getItem('limite_v10') || 0;
+
+    function setCat(cat, btn) {
+        categoriaAtual = cat;
+        document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function salvarLimite() {
+        limite = document.getElementById('limite-valor').value;
+        localStorage.setItem('limite_v10', limite);
+        calcular();
+    }
+
+    function adicionar() {
+        const input = document.getElementById('nome-item');
+        if(input.value.trim() === "") return;
+        produtos.push({ nome: input.value.toUpperCase(), cat: categoriaAtual, qtd: 1, preco: "" });
+        input.value = "";
+        salvar();
+    }
+
+    function renderizar() {
+        const container = document.getElementById('lista-organizada');
+        container.innerHTML = "";
+        const cats = {
+            mercearia: { nome: "Mercearia", cor: "var(--mercearia)" },
+            limpeza: { nome: "Limpeza", cor: "var(--limpeza)" },
+            hortifruti: { nome: "Hortifruti", cor: "var(--hortifruti)" }
+        };
+
+        for (let key in cats) {
+            const itensDaCat = produtos.filter(p => p.cat === key);
+            if (itensDaCat.length > 0) {
+                let html = `<div class="grupo-categoria"><div class="titulo-grupo" style="background:${cats[key].cor}">${cats[key].nome}</div>`;
+                itensDaCat.forEach((item) => {
+                    const idx = produtos.indexOf(item);
+                    html += `
+                        <div class="item-linha">
+                            <span class="nome-prod">${item.nome}</span>
+                            <input type="number" class="campo-qtd" value="${item.qtd}" oninput="update(${idx}, 'qtd', this.value)">
+                            <input type="number" class="campo-preco" placeholder="0.00" value="${item.preco}" oninput="update(${idx}, 'preco', this.value)">
+                            <button onclick="remover(${idx})" style="border:none; background:none; color:red; cursor:pointer; font-weight:bold;">✕</button>
+                        </div>`;
+                });
+                html += `</div>`;
+                container.innerHTML += html;
+            }
+        }
+        document.getElementById('limite-valor').value = limite;
+        calcular();
+    }
+
+    function update(idx, campo, valor) {
+        produtos[idx][campo] = valor;
+        localStorage.setItem('lista_v10', JSON.stringify(produtos));
+        calcular();
+    }
+
+    function calcular() {
+        let total = 0;
+        produtos.forEach(p => total += (parseFloat(p.qtd) || 0) * (parseFloat(p.preco) || 0));
+        document.getElementById('total-geral').innerText = `R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        
+        const saldoBox = document.getElementById('saldo-box');
+        const cardTotal = document.getElementById('card-total');
+        const s = parseFloat(limite) || 0;
+        const saldo = s - total;
+
+        if(s > 0) {
+            saldoBox.innerText = saldo >= 0 ? `Saldo: R$ ${saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `Estourou: R$ ${(saldo*-1).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            saldoBox.className = saldo >= 0 ? "saldo-texto saldo-positivo" : "saldo-texto saldo-negativo";
+            cardTotal.className = saldo >= 0 ? "total-card" : "total-card estourou";
+        }
+    }
+
+    function finalizar() {
+        const comprados = produtos.filter(p => (parseFloat(p.preco) || 0) > 0);
+        if(comprados.length === 0) return alert("Nenhum preço preenchido!");
+
+        if(confirm("Deseja fechar a semana? Os itens comprados serão salvos no histórico e os preços zerados para a próxima compra.")){
+            let total = 0;
+            comprados.forEach(p => total += (parseFloat(p.qtd) || 0) * (parseFloat(p.preco) || 0));
+
+            const agora = new Date();
+            const diaSemana = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][agora.getDay()];
+            
+            historico.unshift({
+                id: Date.now(),
+                data: `${diaSemana}, ${agora.toLocaleDateString()} às ${agora.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`,
+                valor: total,
+                itens: comprados.map(p => ({nome: p.nome, qtd: p.qtd, preco: p.preco, cat: p.cat}))
+            });
+            
+            // Mantém os itens permanentes, mas zera preços
+            produtos = produtos.map(p => ({ ...p, preco: "", qtd: 1 }));
+            
+            localStorage.setItem('hist_v10', JSON.stringify(historico));
+            salvar();
+            renderHist();
+            alert("Compra salva no histórico! Preços limpos para a próxima semana.");
+        }
+    }
+
+    function renderHist() {
+        const div = document.getElementById('historico');
+        div.innerHTML = '<h3 style="margin-left: 10px; color:#1e293b">📜 Histórico Detalhado</h3>';
+        historico.forEach(h => {
+            let listaItens = h.itens.map(i => `<div style="margin-bottom:3px; border-bottom:1px solid #eee">• [${i.cat.toUpperCase()}] ${i.nome} (${i.qtd}x R$ ${i.preco})</div>`).join('');
+            div.innerHTML += `
+                <div class="item-hist">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start">
+                        <div>
+                            <small style="color:gray; font-size:0.7rem">${h.data}</small><br>
+                            <b style="font-size:1.1rem">Total: R$ ${h.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</b>
+                        </div>
+                        <button class="btn-ver-itens" onclick="toggleH(${h.id})">VER ITENS</button>
+                    </div>
+                    <div class="hist-detalhes" id="det-${h.id}">
+                        <strong style="font-size:0.7rem">ITENS COMPRADOS:</strong><br>${listaItens}
+                    </div>
+                </div>`;
+        });
+    }
+
+    function toggleH(id) {
+        const el = document.getElementById(`det-${id}`);
+        el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function remover(idx) {
+        if(confirm("Remover permanentemente da lista?")) {
+            produtos.splice(idx, 1);
+            salvar();
+        }
+    }
+
+    function salvar() {
+        localStorage.setItem('lista_v10', JSON.stringify(produtos));
+        renderizar();
+    }
+
+    renderizar();
+    renderHist();
+</script>
+
+</body>
+</html>
